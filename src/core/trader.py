@@ -37,7 +37,6 @@ class LorentzianTrader:
         self.capital_api = CapitalAPI()
         if not self.capital_api.create_session():
             raise Exception("Could not create session with Capital.com")
-        balance = self.capital_api.account_info['accountInfo']['balance']
 
         # Initialize WebSocket
         self.ws_client = CapitalWebSocket(
@@ -54,7 +53,7 @@ class LorentzianTrader:
         # Initialize components
         self.model = LorentzianModel()
         self.signal_generator = SignalGenerator(self.model)
-        self.session = TradingSession()
+        self.session = TradingSession(self.capital_api.account_info['accountInfo']['balance'])
         
     def handle_quote_update(self, quote_data: Dict):
         """Handle real-time quote updates from WebSocket"""
@@ -105,12 +104,15 @@ class LorentzianTrader:
         print_market_data(market_data)
 
         # Account info
-        #account_info = self.capital_api.account_info
-        #print_account_info(account_info['accountInfo'])
-
-        # Account status
-        #account_status = self.capital_api.account_status
-        #print_account_status(account_status)
+        account = self.capital_api.account_info
+        print(account)
+        account_info = [
+            ["Account Balance", f"${account['accountInfo']['balance']:.2f}"],
+            ["Account Equity", f"${account['accountInfo']['deposit']:.2f}"],
+            ["Account Free Margin", f"${account['accountInfo']['available']:.2f}"],
+            ["Account Margin", f"${account['accountInfo']['profitLoss']:.2f}"]
+        ]
+        print_account_info(account_info)
         
         # Bot configuration
         config_data = [
