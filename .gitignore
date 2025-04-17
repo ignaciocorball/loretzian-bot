@@ -1,0 +1,8 @@
+# Files
+*.xlsx
+*.csv
+*.json
+*.log
+
+# Virtual environment
+venv/
