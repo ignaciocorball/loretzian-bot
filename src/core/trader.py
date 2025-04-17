@@ -105,7 +105,6 @@ class LorentzianTrader:
 
         # Account info
         account = self.capital_api.account_info
-        print(account)
         account_info = [
             ["Account Balance", f"${account['accountInfo']['balance']:.2f}"],
             ["Account Equity", f"${account['accountInfo']['deposit']:.2f}"],
