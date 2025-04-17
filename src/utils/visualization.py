@@ -24,7 +24,6 @@ def print_account_info(account_info: Dict):
     """Print account information in a formatted table"""
     print(colored("=== 💰 Account Information ===", "cyan"))
     print(tabulate(account_info, tablefmt='simple'))
-    print(account_info)
     print()
 
 def print_bot_config(config_data: List[List[str]]):
