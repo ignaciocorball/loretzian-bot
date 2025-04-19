@@ -55,6 +55,9 @@ class LorentzianTrader:
         self.signal_generator = SignalGenerator(self.model)
         self.session = TradingSession(self.capital_api.account_info['accountInfo']['balance'])
         
+        self.last_report_save = time.time()
+        self.report_save_interval = 300
+        
     def handle_quote_update(self, quote_data: Dict):
         """Handle real-time quote updates from WebSocket"""
         try:
@@ -148,8 +151,20 @@ class LorentzianTrader:
     def _process_trading_logic(self, timestamp: datetime, current_price: float):
         """Process trading logic based on current market conditions"""
         try:
+            # Verificar si es tiempo de guardar el reporte
+            current_time = time.time()
+            if current_time - self.last_report_save >= self.report_save_interval:
+                self.session.save_report()
+                self.last_report_save = current_time
+                print("📊 Session report updated - Periodic save")
+            
             # Update active positions
-            self.session.update_active_positions(current_price)
+            closed_positions = self.session.update_active_positions(current_price)
+            
+            # Si se cerraron posiciones, guardar el reporte
+            if closed_positions:
+                self.session.save_report()
+                print(f"📊 Session report updated - {len(closed_positions)} position(s) closed")
             
             # Check for new trading opportunities
             if self.session.can_open_new_position(timestamp):
@@ -174,7 +189,8 @@ class LorentzianTrader:
                             self.session.last_trade_time = timestamp
                             print(f"🚀 Opened {direction} position with size {size} at {current_price}")
                             self.session.save_report()
-                
+                            print("📊 Session report updated - New position opened")
+            
         except Exception as e:
             print_error("Error in trading logic", e)
 

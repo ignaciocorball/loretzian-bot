@@ -158,7 +158,7 @@ class CapitalAPI:
             payload = {
                 "epic": epic,
                 "direction": direction,
-                "size": size,
+                "size": 0.001, #size,
                 "guaranteedStop": False,
                 "forceOpen": True
             }

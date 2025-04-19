@@ -253,6 +253,7 @@ class TradingSession:
         for position in closed_positions:
             position['hit_price'] = current_price
             self.add_trade(position)
+        return closed_positions  # Retornamos las posiciones cerradas
 
     def can_open_new_position(self, current_time: datetime) -> bool:
         """Check if a new position can be opened"""
