@@ -18,8 +18,8 @@ DEFAULT_TIMEFRAME = "1m"
 # Trading configuration
 TRADING_CONFIG: Dict[str, Any] = {
     "risk_per_trade": 0.05,
-    "take_profit": 0.0075,
-    "stop_loss": 0.0025,
+    "take_profit": 0.005,
+    "stop_loss": 0.003,
     "neighbors_count": 10,
     "max_bars_back": 1000,
     "feature_count": 4,
