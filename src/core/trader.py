@@ -188,6 +188,7 @@ class LorentzianTrader:
             
         try:
             balance = float(account_info.get('accountInfo', {}).get('balance', 0))
+            print(f"💰 Balance: ${balance:.2f}")
             if balance <= 0:
                 print_error("Invalid account balance")
                 return 0.0
@@ -195,6 +196,10 @@ class LorentzianTrader:
             risk_amount = balance * self.config['risk_per_trade']
             stop_loss_pct = self.config['stop_loss']
             position_size = risk_amount / (current_price * stop_loss_pct)
+            print(f"💰 Position Size: ${position_size:.2f}")
+            print(f"💰 Risk Amount: ${risk_amount:.2f}")
+            print(f"💰 Stop Loss Percentage: {stop_loss_pct:.2f}")
+            print(f"💰 Current Price: ${current_price:.2f}")
             
             # Ensure position size limits
             position_size = max(0.01, min(0.5, position_size))
