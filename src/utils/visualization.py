@@ -61,7 +61,7 @@ def print_positions(positions: List[Dict]):
             print(colored(f"❌ Error processing position: {e}", "red"))
             continue
 
-    headers = ['ID', 'Type', 'Size', 'Value', 'Entry', 'SL', 'TP', 'P&L', 'Leverage', 'Market']
+    headers = ['Type', 'Size', 'Entry', 'SL', 'TP', 'SL', 'P&L']
     print(tabulate(table_data, headers=headers, tablefmt='simple'))
     print(f"\nTotal P&L: {Fore.GREEN if total_pnl >= 0 else Fore.RED}${total_pnl:.2f}{Style.RESET_ALL}\n")
 
