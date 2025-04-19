@@ -13,6 +13,7 @@ from termcolor import colored
 from src.api.capital import CapitalAPI
 from src.api.capital_ws import CapitalWebSocket
 from src.core.session import TradingSession
+from src.core.positions import ActivePositions
 from src.models.neural import LorentzianModel
 from ..features.signals import SignalGenerator
 from src.utils.config import TRADING_CONFIG, DEFAULT_PAIR, DEFAULT_TIMEFRAME, ENV_CONFIG
@@ -54,6 +55,9 @@ class LorentzianTrader:
         self.model = LorentzianModel()
         self.signal_generator = SignalGenerator(self.model)
         self.session = TradingSession(self.capital_api.account_info['accountInfo']['balance'])
+        
+        # Initialize active positions with session ID
+        self.active_positions = ActivePositions(self.session.session_id)
         
         self.last_report_save = time.time()
         self.report_save_interval = 300
@@ -159,7 +163,7 @@ class LorentzianTrader:
                 print("📊 Session report updated - Periodic save")
             
             # Update active positions
-            closed_positions = self.session.update_active_positions(current_price)
+            closed_positions = self.active_positions.update_positions(current_price)
             
             # Si se cerraron posiciones, guardar el reporte
             if closed_positions:
@@ -186,6 +190,18 @@ class LorentzianTrader:
                         )
                         
                         if position:
+                            # Add position to tracking
+                            position_data = {
+                                'symbol': 'BTCUSD',
+                                'signal': 1 if direction == 'BUY' else -1,
+                                'entry_price': current_price,
+                                'position_size': size,
+                                'stop_loss': stop_loss,
+                                'take_profit': take_profit,
+                                'entry_time': timestamp
+                            }
+                            self.active_positions.add_position(position_data)
+                            
                             self.session.last_trade_time = timestamp
                             print(f"🚀 Opened {direction} position with size {size} at {current_price}")
                             self.session.save_report()

@@ -6,12 +6,20 @@ from colorama import Fore, Style
 from tabulate import tabulate
 from src.core.positions import ActivePositions
 from src.utils.config import DATA_DIR
+from src.database import DatabaseManager, DB_CONFIG, SESSION_STATUS, TRADE_STATUS, TRADE_TYPE
 
 class TradingSession:
     def __init__(self, initial_balance=1000):
+        # Initialize database connection
+        self.db = DatabaseManager(**DB_CONFIG)
+        
+        # Create new session in database
+        self.session_id = self.db.create_session(initial_balance)
+        if not self.session_id:
+            raise Exception("Failed to create trading session in database")
+            
         self.trades = []
         self.session_start = datetime.now()
-        self.session_id = self.session_start.strftime('%Y%m%d_%H%M%S')
         self.initial_balance = initial_balance
         self.current_balance = initial_balance
         self.summary = {
@@ -45,7 +53,9 @@ class TradingSession:
         # Create directory for reports if it doesn't exist
         os.makedirs(DATA_DIR, exist_ok=True)
         
-        self.active_positions = ActivePositions()
+        # Initialize active positions with session_id
+        self.active_positions = ActivePositions(self.session_id)
+        
         self.last_candle_time = None
         self.last_trade_time = None
         self.min_time_between_trades = timedelta(minutes=15)
@@ -84,7 +94,7 @@ class TradingSession:
         return 0, 'OPEN'
         
     def add_trade(self, trade_data: Dict):
-        """Add a new trade to the session"""
+        """Add a new trade to the session and database"""
         # Calculate position size based on risk percentage
         position_size = self.current_balance * trade_data['risk_percentage']
         trade_data['position_size'] = position_size
@@ -98,6 +108,22 @@ class TradingSession:
             'balance_after_trade': self.current_balance + pnl
         })
         
+        # Add trade to database
+        trade_id = self.db.create_trade(
+            session_id=self.session_id,
+            symbol=trade_data['symbol'],
+            trade_type=TRADE_TYPE['BUY'] if trade_data['signal'] > 0 else TRADE_TYPE['SELL'],
+            entry_price=trade_data['entry_price'],
+            quantity=position_size,
+            stop_loss=trade_data['stop_loss'],
+            take_profit=trade_data['take_profit']
+        )
+        
+        if not trade_id:
+            print("❌ Failed to create trade in database")
+            return
+            
+        trade_data['trade_id'] = trade_id
         self.trades.append(trade_data)
         self.summary['total_trades'] += 1
         
@@ -112,16 +138,37 @@ class TradingSession:
             self.summary['winning_trades'] += 1
             self.summary['total_profit'] += pnl
             self.summary['largest_win'] = max(self.summary['largest_win'], pnl)
+            # Update trade in database
+            self.db.update_trade(
+                trade_id=trade_id,
+                exit_price=trade_data['take_profit'],
+                profit_loss=pnl,
+                status=TRADE_STATUS['CLOSED']
+            )
         elif outcome == 'SL':
             self.summary['sl_hits'] += 1
             self.summary['losing_trades'] += 1
             self.summary['total_loss'] -= pnl  # Convert loss to positive for stats
             self.summary['largest_loss'] = max(self.summary['largest_loss'], -pnl)
+            # Update trade in database
+            self.db.update_trade(
+                trade_id=trade_id,
+                exit_price=trade_data['stop_loss'],
+                profit_loss=pnl,
+                status=TRADE_STATUS['CLOSED']
+            )
             
         # Update balance and equity curve
         self.current_balance += pnl
         self.equity_curve.append(self.current_balance)
         self.max_balance = max(self.max_balance, self.current_balance)
+        
+        # Update session in database
+        self.db.update_session(
+            session_id=self.session_id,
+            final_balance=self.current_balance,
+            profit_loss=self.current_balance - self.initial_balance
+        )
         
     def print_trades_table(self):
         """Print table of all trades"""
@@ -230,22 +277,28 @@ class TradingSession:
         self.summary['max_drawdown'] = max_dd
 
     def save_report(self):
-        """Save session report to Excel file"""
-        # Create DataFrame with trades
-        trades_df = pd.DataFrame(self.trades)
-        
-        # Create DataFrame with summary
-        summary_df = pd.DataFrame([self.summary])
-        
-        # Create filename
-        filename = f'{DATA_DIR}/sessions/session-{self.session_id}-summary.xlsx'
-        
-        # Create Excel writer
-        with pd.ExcelWriter(filename, engine='openpyxl') as writer:
-            trades_df.to_excel(writer, sheet_name='Trades', index=False)
-            summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        """Save session report and update database"""
+        try:
+            # Update summary statistics
+            self._update_summary_stats()
             
-        print(f"\n{Fore.GREEN}Session report saved to: {filename}{Style.RESET_ALL}")
+            # Update session in database
+            self.db.update_session(
+                session_id=self.session_id,
+                final_balance=self.current_balance,
+                profit_loss=self.current_balance - self.initial_balance,
+                status=SESSION_STATUS['COMPLETED']
+            )
+            
+            # Save local report
+            report_path = os.path.join(DATA_DIR, f"session_{self.session_id}.csv")
+            df = pd.DataFrame(self.trades)
+            df.to_csv(report_path, index=False)
+            
+            print(f"📊 Session report saved to {report_path}")
+            
+        except Exception as e:
+            print(f"❌ Error saving session report: {e}")
 
     def update_active_positions(self, current_price: float):
         """Update active positions and process closed ones"""
@@ -257,15 +310,11 @@ class TradingSession:
 
     def can_open_new_position(self, current_time: datetime) -> bool:
         """Check if a new position can be opened"""
-        if self.active_positions.has_positions():
-            return False
+        if self.last_trade_time is None:
+            return True
             
-        if self.last_trade_time is not None:
-            time_since_last_trade = current_time - self.last_trade_time
-            if time_since_last_trade < self.min_time_between_trades:
-                return False
-                
-        return True
+        time_since_last_trade = current_time - self.last_trade_time
+        return time_since_last_trade >= self.min_time_between_trades
 
     def print_summary_compact(self):
         """Print compact version of trading summary"""
@@ -290,4 +339,9 @@ class TradingSession:
         print(tabulate(balance_info, tablefmt='simple', colalign=('right','left')))
         
         print(f"\n{Fore.GREEN}┌─ Trade Stats ─┐{Style.RESET_ALL}")
-        print(tabulate(trade_stats, tablefmt='simple', colalign=('right','left'))) 
+        print(tabulate(trade_stats, tablefmt='simple', colalign=('right','left')))
+
+    def __del__(self):
+        """Cleanup when session is destroyed"""
+        if hasattr(self, 'db'):
+            del self.db 

@@ -3,6 +3,7 @@ import os
 from colorama import init
 from termcolor import colored
 from src.core.trader import LorentzianTrader
+from src.database import initialize_database
 
 def run_live_monitoring():
     """Run the live trading bot"""
@@ -14,6 +15,16 @@ def run_live_monitoring():
     print(colored("║ Starting trading session with Capital.com...     ║", "yellow"))
     print(colored("╚══════════════════════════════════════════════════╝\n", "cyan"))
 
+    # Initialize database
+    print(colored("\n📊 Initializing database...", "cyan"))
+    try:
+        initialize_database()
+        print(colored("✅ Database initialized successfully", "green"))
+    except Exception as e:
+        print(colored(f"❌ Error initializing database: {e}", "red"))
+        return
+
+    # Initialize trader
     trader = LorentzianTrader()
     
     async def main_loop():
