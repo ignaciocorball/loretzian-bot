@@ -1,157 +1,193 @@
 # 🤖 Lorentzian Trading Bot
 
-![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.0%2B-orange)
-![Capital.com](https://img.shields.io/badge/Capital.com-API-green)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+An advanced trading bot that uses technical analysis, machine learning, and harmonic patterns to trade financial markets through Capital.com.
 
-A sophisticated cryptocurrency trading bot that implements the Lorentzian strategy with real-time market data from Capital.com. This bot uses advanced machine learning techniques and technical analysis to identify trading opportunities in the crypto market.
+## 🌟 Key Features
 
-## ✨ Features
+### 📊 Multi-Timeframe Analysis
+- Support for 1-minute and 5-minute timeframes
+- Adaptive analysis based on time interval
+- Optimized parameters for intraday trading
 
-- 🧠 Neural network-based trading decisions using TensorFlow
-- 📊 Real-time market data processing with WebSocket connection
-- 📈 Advanced technical indicators calculation (RSI, ADX, CCI, WaveTrend)
-- 💹 Risk management and position sizing
-- 🔄 Automated trade execution through Capital.com API
-- 📱 Beautiful console-based UI with real-time updates
-- 📝 Detailed trading session reports and analytics
-- ⚡ High-performance data processing with NumPy and Pandas
+### 🎯 Advanced Signal System
+- Adaptive volatility analysis
+- Custom technical indicators
+- Harmonic pattern detection
+- Machine learning integration (Lorentzian Model)
 
-## 🛠️ Technologies
+### 📈 Intelligent Position Management
+- Dynamic trend evaluation
+- Adaptive stop-loss and take-profit
+- High volatility protection system
+- Recovery analysis for losing positions
 
-- **Python 3.8+**: Core programming language
-- **TensorFlow**: Deep learning framework for price prediction
-- **Pandas & NumPy**: Data manipulation and numerical computations
-- **TA-Lib**: Technical analysis indicators
-- **Capital.com API**: Market data and trading execution
-- **WebSocket**: Real-time market data streaming
-- **Colorama & Termcolor**: Terminal UI styling
+### ⚡ Technical Features
+- Capital.com API integration
+- Demo and live trading support
+- PostgreSQL database for trade tracking
+- Detailed logging system
 
-## 🚀 Getting Started
+## 🛠️ Setup
 
 ### Prerequisites
+- Python 3.8+
+- PostgreSQL
+- Capital.com Account (Demo or Live)
 
-- Python 3.8 or higher
-- Capital.com API credentials
-- TA-Lib installed on your system
+### Environment Variables
+Create a `.env` file with the following variables:
+```env
+# Capital.com API
+CAPITAL_API_KEY=your_api_key
+CAPITAL_DEMO_MODE=true
+CAPITAL_API_IDENTIFIER=your_email
+CAPITAL_API_PASSWORD=your_password
+
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=trading_bot
+```
 
 ### Installation
-
-1. **Clone the repository**
 ```bash
-git clone https://github.com/ignaciocorball/loretzian-bot.git
-cd loretzian-bot
-```
+# Clone repository
+git clone https://github.com/your-username/loretzian-bot.git
 
-2. **Create and activate virtual environment**
-```bash
-# Windows
-python -m venv venv
-.\venv\Scripts\activate
-
-# Linux/Mac
-python3 -m venv venv
-source venv/bin/activate
-```
-
-3. **Install dependencies**
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Setup database
+python setup_database.py
 ```
 
-4. **Configure your Capital.com API credentials**
-Create a `.env` file in the project root:
-```env
-CAPITAL_API_KEY=your_api_key
-CAPITAL_API_SECRET=your_api_secret
-```
+## ⚙️ Trading Parameters
 
-### 🏃‍♂️ Running the Bot
+### 1-Minute Timeframe
+- High volatility: 5% (daily)
+- Low volatility: 2% (daily)
+- Minimum trend strength: 0.05%
+- Minimum hold time: 5 minutes
+- Maximum allowed loss: -1.5%
+
+### 5-Minute Timeframe
+- High volatility: 8% (daily)
+- Low volatility: 3% (daily)
+- Minimum trend strength: 0.1%
+- Minimum hold time: 15 minutes
+- Maximum allowed loss: -2%
+
+## 🚀 Usage
 
 ```bash
-python src/main.py
+# Start the bot
+python main.py
+
+# Start with specific configuration
+python main.py --timeframe 5m --pair BTCUSD
 ```
 
-## 📊 Trading Strategy
+## 📊 Risk Management System
 
-The Lorentzian Trading Bot implements a sophisticated trading strategy that combines multiple components:
+### Volatility Analysis
+- Timeframe-adapted historical volatility calculation
+- Dynamic parameter adjustment based on market conditions
+- Protection against sudden market movements
 
-### Technical Indicators
-- RSI (Relative Strength Index)
-- ADX (Average Directional Index)
-- CCI (Commodity Channel Index)
-- WaveTrend Oscillator
+### Position Management
+- Continuous trend evaluation using EMAs
+- Momentum analysis for signal confirmation
+- Adaptive trailing stop system
+- Profit protection in volatile conditions
 
-### Filters
-- ✅ Volatility Filter
-- ✅ Regime Filter
-- ✅ ADX Filter
-- ✅ EMA Filter
-- ✅ SMA Filter
+### Exit Criteria
+- Early exit in unfavorable conditions
+- Position holding with recovery signals
+- Volatility-based dynamic stop-loss
+- Adaptive take-profit based on market conditions
 
-### Risk Management
-- Dynamic position sizing based on account balance
-- Configurable risk per trade (default: 5%)
-- Automatic stop-loss and take-profit levels
-- Maximum drawdown protection
+## 📈 Performance Analysis
 
-## 📈 Sample Output
+The bot includes a complete tracking and analysis system:
+- Detailed trade logging
+- Real-time performance metrics
+- Drawdown analysis
+- Statistics by trade type
 
-```
-╔═══════════════ 🤖 Lorentzian Bot ═══════════════╗
-║ 2024-01-20 15:30:45                             ║
-║ Price: $41,235.75                               ║
-╚══════════════════════════════════════════════════╝
+## 🔒 Security
 
-=== 📊 Market Data ===
-Pair         BTC/USD
-Price        $41,235.75
-Bid          $41,234.50
-Ask          $41,237.00
-Spread       $2.50
-
-=== 📈 Active Positions ===
-ID    Type      Size        Entry       SL          TP          P&L
-#123  🟢 LONG   0.1 BTC    $41,000.00  $40,795.00  $41,410.00  +$23.57
-```
-
-## 📝 Configuration
-
-The bot's behavior can be customized through the `config.py` file:
-
-```python
-TRADING_CONFIG = {
-    "risk_per_trade": 0.05,    # 5% risk per trade
-    "take_profit": 0.01,       # 1% take profit
-    "stop_loss": 0.005,        # 0.5% stop loss
-    "max_bars_back": 2000,     # Historical data bars
-    "feature_count": 5,        # Number of features
-    "adx_threshold": 20,       # ADX filter threshold
-}
-```
-
-## 📊 Trading Reports
-
-The bot generates detailed Excel reports after each session, including:
-- Trade history
-- Win/Loss statistics
-- Profit/Loss analysis
-- Risk metrics
-- Performance charts
-
-## ⚠️ Disclaimer
-
-Trading cryptocurrencies carries a high level of risk and may not be suitable for all investors. The high degree of leverage can work against you as well as for you. Before deciding to trade cryptocurrencies, you should carefully consider your investment objectives, level of experience, and risk appetite.
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- Encrypted API Keys support
+- Safe demo mode testing
+- Trade validation
+- Audit logging system
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Please open an issue to discuss major changes before creating a pull request.
 
-## 📧 Contact
+### Development Guidelines
+- Use English for code, comments, and documentation
+- Follow PEP 8 style guide
+- Write unit tests for new features
+- Update documentation when adding features
 
-For questions and support, please open an issue in the GitHub repository.
+## 📝 License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## ⚠️ Disclaimer
+
+Trading involves risk. This bot is an automated trading tool and does not guarantee profits. Use at your own risk.
+
+## 🔧 Technical Architecture
+
+### Core Components
+- `src/core/`: Main trading logic and position management
+- `src/features/`: Technical analysis and signal generation
+- `src/api/`: Capital.com API integration
+- `src/database/`: Database management
+- `src/utils/`: Utility functions and configurations
+
+### Key Classes
+- `LorentzianTrader`: Main trading bot class
+- `SignalGenerator`: Trading signal generation
+- `ActivePositions`: Position management
+- `TechnicalAnalyzer`: Technical analysis tools
+- `CapitalAPI`: API integration
+
+### Data Flow
+1. Market data collection
+2. Technical analysis
+3. Signal generation
+4. Position management
+5. Trade execution
+6. Performance tracking
+
+## 📊 Monitoring and Logging
+
+### Performance Metrics
+- Win rate
+- Profit factor
+- Maximum drawdown
+- Average win/loss ratio
+- Risk-adjusted return
+
+### Logging Levels
+- INFO: Regular trading operations
+- WARNING: Risk management alerts
+- ERROR: Trading errors
+- DEBUG: Detailed system information
+
+## 🔄 Updates and Maintenance
+
+### Version Control
+- Semantic versioning
+- Release notes for each version
+- Migration guides for updates
+
+### Regular Maintenance
+- Daily performance review
+- Weekly parameter optimization
+- Monthly strategy evaluation
