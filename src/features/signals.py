@@ -8,11 +8,25 @@ from src.features.fractals import FractalAnalyzer
 from src.features.technical import TechnicalAnalyzer
 
 class SignalGenerator:
-    def __init__(self, model):
+    def __init__(self, model, timeframe='5m'):
+        """
+        Initialize SignalGenerator
+        
+        Args:
+            model: The prediction model to use
+            timeframe: Trading timeframe ('1m' or '5m')
+        """
         self.model = model
-        self.config = TRADING_CONFIG
+        self.config = TRADING_CONFIG.copy()
         self.fractal_analyzer = FractalAnalyzer(filter_bw=self.config['filter_bill_williams'])
         self.technical_analyzer = TechnicalAnalyzer()
+        self.timeframe = timeframe
+        
+        # Cargar parámetros específicos del timeframe
+        self.tf_params = self.config['timeframe_params'].get(
+            self.timeframe, 
+            self.config['timeframe_params']['5m']  # default a 5m si no se encuentra
+        )
 
     def prepare_combined_features(self, df: pd.DataFrame) -> np.ndarray:
         """Prepare combined feature vector from all sources"""
@@ -58,7 +72,39 @@ class SignalGenerator:
         if current_idx >= len(df):
             return 0
         
-        df_slice = df.iloc[max(0, current_idx-self.config['max_bars_back']):current_idx+1]
+        # Validar que el timeframe sea válido
+        if self.timeframe not in ['1m', '5m']:
+            print(f"❌ Timeframe no válido: {self.timeframe}. Usando 5m por defecto.")
+            self.timeframe = '5m'
+            self.tf_params = self.config['timeframe_params']['5m']
+        
+        # Ajustar el slice de datos según el timeframe
+        lookback_periods = {
+            '1m': 60,    # 1 hora de datos en 1m
+            '5m': 24     # 2 horas de datos en 5m
+        }
+        
+        periods = lookback_periods.get(self.timeframe, 24)
+        df_slice = df.iloc[max(0, current_idx-periods):current_idx+1]
+        
+        # Calcular volatilidad adaptada al timeframe
+        if self.timeframe == '1m':
+            # Volatilidad de 60 minutos, anualizada
+            volatility = df_slice['close'].pct_change().std() * np.sqrt(525600)  # minutos en un año
+        else:  # 5m
+            # Volatilidad de 2 horas, anualizada
+            volatility = df_slice['close'].pct_change().std() * np.sqrt(105120)  # períodos de 5m en un año
+        
+        # Calcular ADX adaptado al timeframe
+        adx_period = 14 if self.timeframe == '5m' else 30  # Más períodos para 1m
+        adx = talib.ADX(df_slice['high'].values, df_slice['low'].values, df_slice['close'].values, 
+                        timeperiod=adx_period)
+        current_adx = adx[-1] if not np.isnan(adx[-1]) else 0
+        
+        # Calcular momentum a corto plazo
+        roc_period = 10 if self.timeframe == '5m' else 20  # Rate of Change
+        momentum = talib.ROC(df_slice['close'], timeperiod=roc_period)
+        current_momentum = momentum[-1] if not np.isnan(momentum[-1]) else 0
         
         # Prepare combined features
         combined_features = self.prepare_combined_features(df_slice)
@@ -74,15 +120,43 @@ class SignalGenerator:
             )
             
             print(f"📊 Signal prediction: {signal_pred:.3f}, Price prediction: {price_pred:.3f}")
+            print(f"📈 Volatility: {volatility:.2f}%, ADX: {current_adx:.2f}")
             
             # Calculate confidence based on technical indicators
             _, confidence = self.technical_analyzer.predict_price_movement(df_slice)
             
-            print(f"🎯 Confidence: {confidence:.3f}, Threshold: {self.config['confidence_threshold']}")
+            # Ajustar factores de confianza según timeframe
+            volatility_thresholds = {
+                '1m': {'high': 0.05, 'low': 0.02},  # 5% y 2% para 1m
+                '5m': {'high': 0.08, 'low': 0.03}   # 8% y 3% para 5m
+            }
             
-            # Only generate signal if confidence meets threshold
-            if confidence < self.config['confidence_threshold']:
-                print("❌ Confidence below threshold")
+            current_thresholds = volatility_thresholds.get(self.timeframe, {'high': 0.08, 'low': 0.03})
+            
+            volatility_factor = 1.0
+            if volatility > current_thresholds['high']:
+                volatility_factor = 0.7
+            elif volatility < current_thresholds['low']:
+                volatility_factor = 1.2
+            
+            # Ajustar factor de tendencia según timeframe
+            adx_threshold = 20 if self.timeframe == '1m' else 25
+            trend_factor = min(current_adx / adx_threshold, 1.2)
+            
+            # Incorporar momentum en la confianza
+            momentum_factor = 1.0
+            if abs(current_momentum) > 0.1:  # 0.1% de cambio
+                momentum_factor = 1.1 if np.sign(current_momentum) == np.sign(signal_pred - 0.5) else 0.9
+            
+            adjusted_confidence = confidence * volatility_factor * trend_factor * momentum_factor
+            
+            print(f"🎯 Base Confidence: {confidence:.3f}")
+            print(f"🎯 Adjusted Confidence: {adjusted_confidence:.3f}")
+            print(f"🎯 Threshold: {self.config['confidence_threshold']}")
+            
+            # Solo generar señal si la confianza ajustada cumple el umbral
+            if adjusted_confidence < self.config['confidence_threshold']:
+                print("❌ Adjusted confidence below threshold")
                 return 0
             
             # Generate final signal with more sensitivity
@@ -102,8 +176,7 @@ class SignalGenerator:
                 return 0
             
         except Exception as e:
-            print(f"❌ Error in prediction: {str(e)}")
-            print(f"Feature vector shape: {combined_features.shape}")
+            print(f"❌ Error generating signal: {e}")
             return 0
 
     def _get_lorentzian_signal(self, df: pd.DataFrame) -> float:

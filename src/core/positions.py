@@ -2,6 +2,9 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 from src.utils.visualization import print_positions
 from src.database import DatabaseManager, DB_CONFIG, TRADE_STATUS
+import pandas as pd
+import numpy as np
+import talib
 
 class ActivePositions:
     def __init__(self, session_id: int):
@@ -40,23 +43,103 @@ class ActivePositions:
             pnl = self.calculate_position_pnl(position, current_price)
             position['current_pnl'] = pnl
             
-            if self.check_position_exit(position, current_price):
-                position['exit_price'] = current_price
-                position['exit_time'] = datetime.now()
-                closed_positions.append(position)
+            entry_time = position.get('entry_time')
+            if entry_time:
+                # Calcular tiempo en minutos
+                time_in_trade = (datetime.now() - entry_time).total_seconds() / 60
                 
-                # Update trade in database
-                if 'trade_id' in position:
-                    self.db.update_trade(
-                        trade_id=position['trade_id'],
-                        exit_price=current_price,
-                        profit_loss=pnl,
-                        status=TRADE_STATUS['CLOSED']
-                    )
-                    print(f"✅ Updated closed position {position['trade_id']} in database")
-            else:
-                updated_positions.append(position)
+                # Obtener datos históricos según timeframe
+                resolution = position.get('timeframe', 'MINUTE_5')
+                bars_needed = 30 if resolution == 'MINUTE_1' else 12
                 
+                market_data = self.capital_api.get_price_history(
+                    position['symbol'],
+                    resolution=resolution,
+                    max_bars=bars_needed
+                )
+                
+                if market_data and 'prices' in market_data:
+                    df = pd.DataFrame([{
+                        'close': float(price['closePrice']['bid'])
+                    } for price in market_data['prices']])
+                    
+                    # Calcular volatilidad adaptada al timeframe
+                    if resolution == 'MINUTE_1':
+                        volatility = df['close'].pct_change().std() * np.sqrt(1440)  # Escalar a diario
+                    else:  # MINUTE_5
+                        volatility = df['close'].pct_change().std() * np.sqrt(288)   # Escalar a diario
+                    
+                    # Calcular EMAs adaptadas al timeframe
+                    if resolution == 'MINUTE_1':
+                        ema_fast = talib.EMA(df['close'], timeperiod=10)  # 10 minutos
+                        ema_slow = talib.EMA(df['close'], timeperiod=30)  # 30 minutos
+                    else:  # MINUTE_5
+                        ema_fast = talib.EMA(df['close'], timeperiod=6)   # 30 minutos
+                        ema_slow = talib.EMA(df['close'], timeperiod=12)  # 1 hora
+                    
+                    trend_strength = (ema_fast[-1] - ema_slow[-1]) / ema_slow[-1]
+                    
+                    # Parámetros adaptados al timeframe
+                    params = {
+                        'MINUTE_1': {
+                            'min_hold_time': 5,        # 5 minutos mínimo
+                            'trend_threshold': 0.0005,  # 0.05%
+                            'volatility_threshold': 0.10,  # 10% diario
+                            'max_loss': -0.015         # -1.5%
+                        },
+                        'MINUTE_5': {
+                            'min_hold_time': 15,       # 15 minutos mínimo
+                            'trend_threshold': 0.001,   # 0.1%
+                            'volatility_threshold': 0.15,  # 15% diario
+                            'max_loss': -0.02          # -2%
+                        }
+                    }
+                    
+                    current_params = params.get(resolution, params['MINUTE_5'])
+                    
+                    should_close = False
+                    
+                    if position['signal'] > 0:  # Posición larga
+                        if pnl > 0:  # En ganancia
+                            if trend_strength < -current_params['trend_threshold'] and volatility > current_params['volatility_threshold']:
+                                should_close = True
+                                print(f"🔄 Cerrando posición larga ganadora - Tendencia débil y alta volatilidad")
+                        else:  # En pérdida
+                            if trend_strength > current_params['trend_threshold'] and time_in_trade > current_params['min_hold_time']:
+                                print(f"�� Manteniendo posición larga perdedora - Señales de recuperación")
+                            elif (pnl < current_params['max_loss'] and trend_strength < -current_params['trend_threshold']):
+                                should_close = True
+                                print(f"🔄 Cerrando posición larga perdedora - Sin señales de recuperación")
+                    
+                    else:  # Posición corta
+                        if pnl > 0:  # En ganancia
+                            if trend_strength > current_params['trend_threshold'] and volatility > current_params['volatility_threshold']:
+                                should_close = True
+                                print(f"🔄 Cerrando posición corta ganadora - Tendencia débil y alta volatilidad")
+                        else:  # En pérdida
+                            if trend_strength < -current_params['trend_threshold'] and time_in_trade > current_params['min_hold_time']:
+                                print(f"💪 Manteniendo posición corta perdedora - Señales de recuperación")
+                            elif (pnl < current_params['max_loss'] and trend_strength > current_params['trend_threshold']):
+                                should_close = True
+                                print(f"🔄 Cerrando posición corta perdedora - Sin señales de recuperación")
+                    
+                    if should_close:
+                        position['exit_price'] = current_price
+                        position['exit_time'] = datetime.now()
+                        closed_positions.append(position)
+                        
+                        # Update trade in database
+                        if 'trade_id' in position:
+                            self.db.update_trade(
+                                trade_id=position['trade_id'],
+                                exit_price=current_price,
+                                profit_loss=pnl,
+                                status=TRADE_STATUS['CLOSED']
+                            )
+                            print(f"✅ Updated closed position {position['trade_id']} in database")
+                    else:
+                        updated_positions.append(position)
+        
         self.positions = updated_positions
         return closed_positions
         

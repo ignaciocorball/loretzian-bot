@@ -53,7 +53,10 @@ class LorentzianTrader:
         
         # Initialize components
         self.model = LorentzianModel()
-        self.signal_generator = SignalGenerator(self.model)
+        self.signal_generator = SignalGenerator(
+            self.model,
+            timeframe=self.timeframe
+        )
         self.session = TradingSession(self.capital_api.account_info['accountInfo']['balance'])
         
         # Initialize active positions with session ID
