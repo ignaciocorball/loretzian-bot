@@ -158,7 +158,7 @@ class LorentzianTrader:
     def _process_trading_logic(self, timestamp: datetime, current_price: float):
         """Process trading logic based on current market conditions"""
         try:
-            # Verificar si es tiempo de guardar el reporte
+            # Check if it's time to save the report
             current_time = time.time()
             if current_time - self.last_report_save >= self.report_save_interval:
                 self.session.save_report()
@@ -168,7 +168,7 @@ class LorentzianTrader:
             # Update active positions
             closed_positions = self.active_positions.update_positions(current_price)
             
-            # Si se cerraron posiciones, guardar el reporte
+            # If positions were closed, save the report
             if closed_positions:
                 self.session.save_report()
                 print(f"📊 Session report updated - {len(closed_positions)} position(s) closed")

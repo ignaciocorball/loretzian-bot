@@ -45,10 +45,10 @@ class ActivePositions:
             
             entry_time = position.get('entry_time')
             if entry_time:
-                # Calcular tiempo en minutos
+                # Calculate time in minutes
                 time_in_trade = (datetime.now() - entry_time).total_seconds() / 60
                 
-                # Obtener datos históricos según timeframe
+                # Get historical data according to timeframe
                 resolution = position.get('timeframe', 'MINUTE_5')
                 bars_needed = 30 if resolution == 'MINUTE_1' else 12
                 
@@ -63,34 +63,34 @@ class ActivePositions:
                         'close': float(price['closePrice']['bid'])
                     } for price in market_data['prices']])
                     
-                    # Calcular volatilidad adaptada al timeframe
+                    # Calculate volatility adapted to timeframe
                     if resolution == 'MINUTE_1':
-                        volatility = df['close'].pct_change().std() * np.sqrt(1440)  # Escalar a diario
+                        volatility = df['close'].pct_change().std() * np.sqrt(1440)  # Scale to daily
                     else:  # MINUTE_5
-                        volatility = df['close'].pct_change().std() * np.sqrt(288)   # Escalar a diario
+                        volatility = df['close'].pct_change().std() * np.sqrt(288)   # Scale to daily
                     
-                    # Calcular EMAs adaptadas al timeframe
+                    # Calculate EMAs adapted to timeframe
                     if resolution == 'MINUTE_1':
-                        ema_fast = talib.EMA(df['close'], timeperiod=10)  # 10 minutos
-                        ema_slow = talib.EMA(df['close'], timeperiod=30)  # 30 minutos
+                        ema_fast = talib.EMA(df['close'], timeperiod=10)  # 10 minutes
+                        ema_slow = talib.EMA(df['close'], timeperiod=30)  # 30 minutes
                     else:  # MINUTE_5
-                        ema_fast = talib.EMA(df['close'], timeperiod=6)   # 30 minutos
-                        ema_slow = talib.EMA(df['close'], timeperiod=12)  # 1 hora
+                        ema_fast = talib.EMA(df['close'], timeperiod=6)   # 30 minutes
+                        ema_slow = talib.EMA(df['close'], timeperiod=12)  # 1 hour
                     
                     trend_strength = (ema_fast[-1] - ema_slow[-1]) / ema_slow[-1]
                     
-                    # Parámetros adaptados al timeframe
+                    # Parameters adapted to timeframe
                     params = {
                         'MINUTE_1': {
-                            'min_hold_time': 5,        # 5 minutos mínimo
+                            'min_hold_time': 5,        # 5 minutes minimum
                             'trend_threshold': 0.0005,  # 0.05%
-                            'volatility_threshold': 0.10,  # 10% diario
+                            'volatility_threshold': 0.10,  # 10% daily
                             'max_loss': -0.015         # -1.5%
                         },
                         'MINUTE_5': {
-                            'min_hold_time': 15,       # 15 minutos mínimo
+                            'min_hold_time': 15,       # 15 minutes minimum
                             'trend_threshold': 0.001,   # 0.1%
-                            'volatility_threshold': 0.15,  # 15% diario
+                            'volatility_threshold': 0.15,  # 15% daily
                             'max_loss': -0.02          # -2%
                         }
                     }
@@ -99,29 +99,29 @@ class ActivePositions:
                     
                     should_close = False
                     
-                    if position['signal'] > 0:  # Posición larga
-                        if pnl > 0:  # En ganancia
+                    if position['signal'] > 0:  # Long position
+                        if pnl > 0:  # In profit
                             if trend_strength < -current_params['trend_threshold'] and volatility > current_params['volatility_threshold']:
                                 should_close = True
-                                print(f"🔄 Cerrando posición larga ganadora - Tendencia débil y alta volatilidad")
-                        else:  # En pérdida
+                                print(f"🔄 Closing winning long position - Weak trend and high volatility")
+                        else:  # In loss
                             if trend_strength > current_params['trend_threshold'] and time_in_trade > current_params['min_hold_time']:
-                                print(f"�� Manteniendo posición larga perdedora - Señales de recuperación")
+                                print(f"💪 Holding losing long position - Recovery signals detected")
                             elif (pnl < current_params['max_loss'] and trend_strength < -current_params['trend_threshold']):
                                 should_close = True
-                                print(f"🔄 Cerrando posición larga perdedora - Sin señales de recuperación")
+                                print(f"🔄 Closing losing long position - No recovery signals")
                     
-                    else:  # Posición corta
-                        if pnl > 0:  # En ganancia
+                    else:  # Short position
+                        if pnl > 0:  # In profit
                             if trend_strength > current_params['trend_threshold'] and volatility > current_params['volatility_threshold']:
                                 should_close = True
-                                print(f"🔄 Cerrando posición corta ganadora - Tendencia débil y alta volatilidad")
-                        else:  # En pérdida
+                                print(f"🔄 Closing winning short position - Weak trend and high volatility")
+                        else:  # In loss
                             if trend_strength < -current_params['trend_threshold'] and time_in_trade > current_params['min_hold_time']:
-                                print(f"💪 Manteniendo posición corta perdedora - Señales de recuperación")
+                                print(f"💪 Holding losing short position - Recovery signals detected")
                             elif (pnl < current_params['max_loss'] and trend_strength > current_params['trend_threshold']):
                                 should_close = True
-                                print(f"🔄 Cerrando posición corta perdedora - Sin señales de recuperación")
+                                print(f"🔄 Closing losing short position - No recovery signals")
                     
                     if should_close:
                         position['exit_price'] = current_price

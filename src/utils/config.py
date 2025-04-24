@@ -13,7 +13,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 # Trading pairs
 DEFAULT_PAIR = "BTC/USD"
-DEFAULT_TIMEFRAME = '5m'  # o '1m' según prefieras por defecto
+DEFAULT_TIMEFRAME = '5m'
 
 # Trading configuration
 TRADING_CONFIG: Dict[str, Any] = {
@@ -50,37 +50,37 @@ TRADING_CONFIG: Dict[str, Any] = {
     # Prediction parameters
     "prediction_horizon": 5,
     "confidence_threshold": 0.45,
-    # Nuevos parámetros para gestión de volatilidad
-    'high_volatility_threshold': 0.25,  # 25% volatilidad anualizada
-    'low_volatility_threshold': 0.10,   # 10% volatilidad anualizada
-    # Parámetros para gestión de posiciones
-    'trend_strength_threshold': 0.002,   # 0.2% cambio en EMAs
-    'recovery_time_minimum': 1,          # Horas mínimas para evaluar recuperación
-    'max_loss_threshold': -0.02,         # -2% máxima pérdida permitida
-    'volatility_exit_threshold': 0.20,   # 20% volatilidad para salida
-    # Parámetros adaptados por timeframe
+    # New parameters for volatility management
+    'high_volatility_threshold': 0.25,  # 25% annualized volatility
+    'low_volatility_threshold': 0.10,   # 10% annualized volatility
+    # Position management parameters
+    'trend_strength_threshold': 0.002,   # 0.2% change in EMAs
+    'recovery_time_minimum': 1,          # Minimum hours to evaluate recovery
+    'max_loss_threshold': -0.02,         # -2% maximum allowed loss
+    'volatility_exit_threshold': 0.20,   # 20% volatility for exit
+    # Parameters adapted by timeframe
     'timeframe_params': {
         '1m': {
-            'volatility_high': 0.05,    # 5% volatilidad diaria
-            'volatility_low': 0.02,     # 2% volatilidad diaria
-            'trend_strength': 0.0005,   # 0.05% cambio en EMAs
-            'min_hold_time': 5,         # 5 minutos
-            'max_loss': -0.015,         # -1.5% máxima pérdida
-            'adx_period': 30,           # Períodos para ADX
-            'momentum_period': 20,      # Períodos para momentum
-            'ema_fast': 10,             # EMA rápida (10 minutos)
-            'ema_slow': 30              # EMA lenta (30 minutos)
+            'volatility_high': 0.05,    # 5% daily volatility
+            'volatility_low': 0.02,     # 2% daily volatility
+            'trend_strength': 0.0005,   # 0.05% change in EMAs
+            'min_hold_time': 5,         # 5 minutes
+            'max_loss': -0.015,         # -1.5% maximum loss
+            'adx_period': 30,           # Periods for ADX
+            'momentum_period': 20,      # Periods for momentum
+            'ema_fast': 10,             # Fast EMA (10 minutes)
+            'ema_slow': 30              # Slow EMA (30 minutes)
         },
         '5m': {
-            'volatility_high': 0.08,    # 8% volatilidad diaria
-            'volatility_low': 0.03,     # 3% volatilidad diaria
-            'trend_strength': 0.001,    # 0.1% cambio en EMAs
-            'min_hold_time': 15,        # 15 minutos
-            'max_loss': -0.02,          # -2% máxima pérdida
-            'adx_period': 14,           # Períodos para ADX
-            'momentum_period': 10,      # Períodos para momentum
-            'ema_fast': 6,              # EMA rápida (30 minutos)
-            'ema_slow': 12              # EMA lenta (1 hora)
+            'volatility_high': 0.08,    # 8% daily volatility
+            'volatility_low': 0.03,     # 3% daily volatility
+            'trend_strength': 0.001,    # 0.1% change in EMAs
+            'min_hold_time': 15,        # 15 minutes
+            'max_loss': -0.02,          # -2% maximum loss
+            'adx_period': 14,           # Periods for ADX
+            'momentum_period': 10,      # Periods for momentum
+            'ema_fast': 6,              # Fast EMA (30 minutes)
+            'ema_slow': 12              # Slow EMA (1 hour)
         }
     }
 }

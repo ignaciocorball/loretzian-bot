@@ -145,7 +145,7 @@ def _display_market_info(self, timestamp: datetime, current_price: float, quote_
     ]
     print_market_data(market_data)
     
-    # Account status (new section)
+    # Account status
     if self.capital_api.account_info:
         account_info = self.capital_api.account_info.get('accountInfo', {})
         print_account_status(account_info)

@@ -22,10 +22,10 @@ class SignalGenerator:
         self.technical_analyzer = TechnicalAnalyzer()
         self.timeframe = timeframe
         
-        # Cargar parámetros específicos del timeframe
+        # Load timeframe-specific parameters
         self.tf_params = self.config['timeframe_params'].get(
             self.timeframe, 
-            self.config['timeframe_params']['5m']  # default a 5m si no se encuentra
+            self.config['timeframe_params']['5m']  # default to 5m if not found
         )
 
     def prepare_combined_features(self, df: pd.DataFrame) -> np.ndarray:
@@ -72,36 +72,36 @@ class SignalGenerator:
         if current_idx >= len(df):
             return 0
         
-        # Validar que el timeframe sea válido
+        # Validate that timeframe is valid
         if self.timeframe not in ['1m', '5m']:
-            print(f"❌ Timeframe no válido: {self.timeframe}. Usando 5m por defecto.")
+            print(f"❌ Invalid timeframe: {self.timeframe}. Using 5m as default.")
             self.timeframe = '5m'
             self.tf_params = self.config['timeframe_params']['5m']
         
-        # Ajustar el slice de datos según el timeframe
+        # Adjust data slice according to timeframe
         lookback_periods = {
-            '1m': 60,    # 1 hora de datos en 1m
-            '5m': 24     # 2 horas de datos en 5m
+            '1m': 60,    # 1 hour of data in 1m
+            '5m': 24     # 2 hours of data in 5m
         }
         
         periods = lookback_periods.get(self.timeframe, 24)
         df_slice = df.iloc[max(0, current_idx-periods):current_idx+1]
         
-        # Calcular volatilidad adaptada al timeframe
+        # Calculate volatility adapted to timeframe
         if self.timeframe == '1m':
-            # Volatilidad de 60 minutos, anualizada
-            volatility = df_slice['close'].pct_change().std() * np.sqrt(525600)  # minutos en un año
+            # 60-minute volatility, annualized
+            volatility = df_slice['close'].pct_change().std() * np.sqrt(525600)  # minutes in a year
         else:  # 5m
-            # Volatilidad de 2 horas, anualizada
-            volatility = df_slice['close'].pct_change().std() * np.sqrt(105120)  # períodos de 5m en un año
+            # 2-hour volatility, annualized
+            volatility = df_slice['close'].pct_change().std() * np.sqrt(105120)  # 5m periods in a year
         
-        # Calcular ADX adaptado al timeframe
-        adx_period = 14 if self.timeframe == '5m' else 30  # Más períodos para 1m
+        # Calculate ADX adapted to timeframe
+        adx_period = 14 if self.timeframe == '5m' else 30  # More periods for 1m
         adx = talib.ADX(df_slice['high'].values, df_slice['low'].values, df_slice['close'].values, 
                         timeperiod=adx_period)
         current_adx = adx[-1] if not np.isnan(adx[-1]) else 0
         
-        # Calcular momentum a corto plazo
+        # Calculate short-term momentum
         roc_period = 10 if self.timeframe == '5m' else 20  # Rate of Change
         momentum = talib.ROC(df_slice['close'], timeperiod=roc_period)
         current_momentum = momentum[-1] if not np.isnan(momentum[-1]) else 0
@@ -125,10 +125,10 @@ class SignalGenerator:
             # Calculate confidence based on technical indicators
             _, confidence = self.technical_analyzer.predict_price_movement(df_slice)
             
-            # Ajustar factores de confianza según timeframe
+            # Adjust confidence factors according to timeframe
             volatility_thresholds = {
-                '1m': {'high': 0.05, 'low': 0.02},  # 5% y 2% para 1m
-                '5m': {'high': 0.08, 'low': 0.03}   # 8% y 3% para 5m
+                '1m': {'high': 0.05, 'low': 0.02},  # 5% and 2% for 1m
+                '5m': {'high': 0.08, 'low': 0.03}   # 8% and 3% for 5m
             }
             
             current_thresholds = volatility_thresholds.get(self.timeframe, {'high': 0.08, 'low': 0.03})
@@ -139,13 +139,13 @@ class SignalGenerator:
             elif volatility < current_thresholds['low']:
                 volatility_factor = 1.2
             
-            # Ajustar factor de tendencia según timeframe
+            # Adjust trend factor according to timeframe
             adx_threshold = 20 if self.timeframe == '1m' else 25
             trend_factor = min(current_adx / adx_threshold, 1.2)
             
-            # Incorporar momentum en la confianza
+            # Incorporate momentum into confidence
             momentum_factor = 1.0
-            if abs(current_momentum) > 0.1:  # 0.1% de cambio
+            if abs(current_momentum) > 0.1:  # 0.1% change
                 momentum_factor = 1.1 if np.sign(current_momentum) == np.sign(signal_pred - 0.5) else 0.9
             
             adjusted_confidence = confidence * volatility_factor * trend_factor * momentum_factor
@@ -154,7 +154,7 @@ class SignalGenerator:
             print(f"🎯 Adjusted Confidence: {adjusted_confidence:.3f}")
             print(f"🎯 Threshold: {self.config['confidence_threshold']}")
             
-            # Solo generar señal si la confianza ajustada cumple el umbral
+            # Only generate signal if adjusted confidence meets threshold
             if adjusted_confidence < self.config['confidence_threshold']:
                 print("❌ Adjusted confidence below threshold")
                 return 0
